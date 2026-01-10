@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Apple Counter</title>
+</head>
+<body>
+
+<h2>🍎 Apple Count</h2>
+<h1 id="count">0</h1>
+
+<button onclick="add()">+ Apple</button>
+<button onclick="sub()">- Apple</button>
+
+<script>
+const API = "http://localhost:3000";
+
+let localCount = Number(localStorage.getItem("count")) || 0;
+let pending = Number(localStorage.getItem("pending")) || 0;
+
+const el = document.getElementById("count");
+
+function render() {
+  el.innerText = localCount;
+}
+
+function saveLocal() {
+  localStorage.setItem("count", localCount);
+  localStorage.setItem("pending", pending);
+}
+
+function add() {
+  localCount++;
+  pending++;
+  saveLocal();
+  render();
+  if (navigator.onLine) sync();
+}
+
+function sub() {
+  if (localCount === 0) return;
+  localCount--;
+  pending--;
+  saveLocal();
+  render();
+  if (navigator.onLine) sync();
+}
+
+async function sync() {
+  if (pending === 0) return;
+
+  const res = await fetch(API + "/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta: pending })
+  });
+
+  const data = await res.json();
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
+  render();
+}
+
+async function loadFromServer() {
+  if (!navigator.onLine) return;
+
+  const res = await fetch(API + "/count");
+  const data = await res.json();
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
+  render();
+}
+
+/* 🔥 CRITICAL FIX */
+if (navigator.onLine) {
+  if (pending !== 0) {
+    sync();
+  } else {
+    loadFromServer();
+  }
+}
+
+window.addEventListener("online", sync);
+render();
+</script>
+
+</body>
+</html>
