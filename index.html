@@ -2,6 +2,10 @@
 <html>
 <head>
   <title>Apple Counter</title>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2c3e50">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 </head>
 <body>
 
@@ -83,6 +87,25 @@ if (navigator.onLine) {
 
 window.addEventListener("online", sync);
 render();
+
+  /* ✅ Service Worker Register */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("✅ Service Worker Registered"))
+    .catch(err => console.log("❌ SW Error", err));
+}
+
+/* ✅ Online / Offline Status */
+function updateNetStatus() {
+  if (navigator.onLine) {
+    console.log("Online");
+  } else {
+    console.log("Offline");
+  }
+}
+
+window.addEventListener("online", updateNetStatus);
+window.addEventListener("offline", updateNetStatus);
 </script>
 
 </body>
