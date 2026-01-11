@@ -3,7 +3,9 @@
 <head>
   <title>PWA Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#2c3e50">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2c3e50">
+
   <style>
     body { font-family: Arial; background:#f4f6f8; padding:20px; }
     .status { display:flex; align-items:center; font-weight:bold; }
@@ -130,7 +132,11 @@ async function refreshData() {
   }
   render();
 }
-
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("✅ SW Registered"))
+    .catch(err => console.log("❌ SW Error", err));
+}
 /* 🌐 Network UI */
 function updateNet() {
   let d=document.getElementById("netDot"), t=document.getElementById("netText");
