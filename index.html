@@ -1,159 +1,111 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>PWA Inventory</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<head> 
+  <title>Apple Counter</title>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2c3e50">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body { font-family: Arial; background:#f4f6f8; padding:20px; }
-    .status { display:flex; align-items:center; font-weight:bold; }
-    .dot { width:12px;height:12px;border-radius:50%;margin-right:8px; }
-    .online{background:green;} .offline{background:red;}
-    .product{background:#fff;padding:15px;margin:10px 0;border-radius:8px;}
-    button{margin:4px;padding:6px 12px;}
-    .admin{background:#222;color:#fff;padding:15px;border-radius:8px;}
-  </style>
 </head>
-
 <body>
 
-<div class="status">
-  <div id="netDot" class="dot offline"></div>
-  <span id="netText">Offline</span>
-</div>
+<h2>🍎 Apple Count</h2>
+<h1 id="count">0</h1>
 
-<h2>📦 Inventory</h2>
-
-<button onclick="refreshData()">🔄 Refresh</button>
-
-<div id="products"></div>
-
-<div class="admin">
-  <h3>Admin Panel</h3>
-  <input id="newProduct" placeholder="Product name">
-  <button onclick="addProduct()">➕ Add Product</button>
-</div>
+<button onclick="add()">+ Apple</button>
+<button onclick="sub()">- Apple</button>
 
 <script>
 const API = "https://apple-rj1b.onrender.com";
 
-let products = JSON.parse(localStorage.getItem("products")) || {};
+let localCount = Number(localStorage.getItem("count")) || 0;
+let pending = Number(localStorage.getItem("pending")) || 0;
 
-const box = document.getElementById("products");
+const el = document.getElementById("count");
 
-/* 🔄 Render */
 function render() {
-  box.innerHTML = "";
-  for (let name in products) {
-    let p = products[name];
-    box.innerHTML += `
-      <div class="product">
-        <h3>${name.toUpperCase()}</h3>
-        <h1>${p.count}</h1>
-        <button onclick="change('${name}',1)">+</button>
-        <button onclick="change('${name}',-1)">-</button>
-        <button onclick="deleteProduct('${name}')">🗑 Delete</button>
-      </div>
-    `;
-  }
-  localStorage.setItem("products", JSON.stringify(products));
+  el.innerText = localCount;
 }
 
-/* ➕➖ Change */
-function change(name, delta) {
-  if (products[name].count + delta < 0) return;
-  products[name].count += delta;
-  products[name].pending += delta;
+function saveLocal() {
+  localStorage.setItem("count", localCount);
+  localStorage.setItem("pending", pending);
+}
+
+function add() {
+  localCount++;
+  pending++;
+  saveLocal();
   render();
-  if (navigator.onLine) sync(name);
+  if (navigator.onLine) sync();
 }
 
-/* 🔄 Sync Count */
-async function sync(name) {
-  let p = products[name];
-  if (p.pending === 0) return;
+function sub() {
+  if (localCount === 0) return;
+  localCount--;
+  pending--;
+  saveLocal();
+  render();
+  if (navigator.onLine) sync();
+}
+
+async function sync() {
+  if (pending === 0) return;
 
   const res = await fetch(API + "/update", {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ product:name, delta:p.pending })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta: pending })
   });
 
   const data = await res.json();
-  p.count = data.count;
-  p.pending = 0;
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
   render();
 }
 
-/* ➕ CREATE PRODUCT (MongoDB + Local) */
-async function addProduct() {
-  const name = document.getElementById("newProduct").value.toLowerCase();
-  if (!name || products[name]) return;
+async function loadFromServer() {
+  if (!navigator.onLine) return;
 
-  products[name] = { count:0, pending:0 };
-  render();
-
-  if (navigator.onLine) {
-    await fetch(API + "/create-product", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ product:name })
-    });
-  }
-}
-
-/* 🗑 DELETE PRODUCT */
-async function deleteProduct(name) {
-  delete products[name];
-  render();
-
-  if (navigator.onLine) {
-    await fetch(API + "/delete-product/" + name, {
-      method:"DELETE"
-    });
-  }
-}
-
-/* 🔄 REFRESH */
-async function refreshData() {
-  if (!navigator.onLine) return alert("Offline");
-
-  const res = await fetch(API + "/all");
+  const res = await fetch(API + "/count");
   const data = await res.json();
-
-  for (let name in data) {
-    if (!products[name]) {
-      products[name] = { count:0, pending:0 };
-    }
-    products[name].count = data[name];
-    products[name].pending = 0;
-  }
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
   render();
 }
+
+/* 🔥 CRITICAL FIX */
+if (navigator.onLine) {
+  if (pending !== 0) {
+    sync();
+  } else {
+    loadFromServer();
+  }
+}
+
+window.addEventListener("online", sync);
+render();
+
+  /* ✅ Service Worker Register */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js")
-    .then(() => console.log("✅ SW Registered"))
+    .then(() => console.log("✅ Service Worker Registered"))
     .catch(err => console.log("❌ SW Error", err));
 }
-/* 🌐 Network UI */
-function updateNet() {
-  let d=document.getElementById("netDot"), t=document.getElementById("netText");
-  if(navigator.onLine){
-    d.className="dot online"; t.innerText="Online";
-    refreshData();
-    for(let n in products) if(products[n].pending) sync(n);
+
+/* ✅ Online / Offline Status */
+function updateNetStatus() {
+  if (navigator.onLine) {
+    console.log("Online");
   } else {
-    d.className="dot offline"; t.innerText="Offline";
+    console.log("Offline");
   }
 }
 
-window.addEventListener("online",updateNet);
-window.addEventListener("offline",updateNet);
-
-updateNet();
-render();
+window.addEventListener("online", updateNetStatus);
+window.addEventListener("offline", updateNetStatus);
 </script>
 
 </body>
