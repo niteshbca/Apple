@@ -20,7 +20,7 @@ body{
   justify-content:center;
 }
 
-/* 🔔 Online / Offline Status */
+/* 🔔 Status */
 .status{
   position:fixed;
   top:10px;
@@ -52,13 +52,12 @@ h1{
   font-size:64px;
   margin:15px 0;
   color:#ff4d4d;
-  transition:.2s;
 }
 
 .btns{
   display:flex;
   gap:10px;
-  margin-top:20px;
+  margin-top:15px;
 }
 button{
   flex:1;
@@ -74,18 +73,6 @@ button{
 .refresh{background:#3498db}
 
 button:active{transform:scale(.95)}
-
-/* 🎉 Celebration */
-.emoji{
-  position:fixed;
-  top:-20px;
-  font-size:26px;
-  animation:fall linear forwards;
-  z-index:9998;
-}
-@keyframes fall{
-  to{transform:translateY(110vh) rotate(360deg);opacity:0}
-}
 </style>
 </head>
 
@@ -108,7 +95,7 @@ button:active{transform:scale(.95)}
 </div>
 
 <script>
-const API="https://apple-rj1b.onrender.com";
+const API = "https://apple-rj1b.onrender.com";
 
 let localCount = Number(localStorage.getItem("count")) || 0;
 let pending    = Number(localStorage.getItem("pending")) || 0;
@@ -119,8 +106,6 @@ const statusEl = document.getElementById("netStatus");
 /* 🔄 Render */
 function render(){
   countEl.innerText = localCount;
-  countEl.style.transform="scale(1.2)";
-  setTimeout(()=>countEl.style.transform="scale(1)",150);
 }
 
 /* 💾 Save */
@@ -129,78 +114,74 @@ function save(){
   localStorage.setItem("pending", pending);
 }
 
-/* 🎉 Celebration */
-function celebrate(){
-  const icons=["🎉","🎊","🚀","👏","🍎","✨"];
-  for(let i=0;i<30;i++){
-    const e=document.createElement("div");
-    e.className="emoji";
-    e.innerText=icons[Math.floor(Math.random()*icons.length)];
-    e.style.left=Math.random()*100+"vw";
-    e.style.animationDuration=(1+Math.random()*1.5)+"s";
-    document.body.appendChild(e);
-    setTimeout(()=>e.remove(),2000);
-  }
-}
-
 /* ➕ ➖ */
 function add(){
   localCount++; pending++;
-  save(); render(); celebrate();
+  save(); render();
   if(navigator.onLine) sync();
 }
 function sub(){
   if(localCount===0) return;
   localCount--; pending--;
-  save(); render(); celebrate();
+  save(); render();
   if(navigator.onLine) sync();
 }
 
-/* 🌐 Sync Pending Changes */
+/* 🌐 Sync pending → server */
 async function sync(){
-  if(pending===0) return;
+  if(!navigator.onLine || pending===0) return;
 
-  const res = await fetch(API+"/update",{
+  const r = await fetch(API+"/update",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({delta:pending})
   });
-  const data = await res.json();
-  localCount = data.count;
+  const d = await r.json();
+  localCount = d.count;
   pending = 0;
   save(); render();
 }
 
-/* 📥 Always Get Latest Server Data */
+/* 📥 Fetch latest from server */
 async function fetchLatest(){
   if(!navigator.onLine) return;
-  const res = await fetch(API+"/count");
-  const data = await res.json();
-  localCount = data.count;
-  pending = 0;
-  save(); render();
+
+  const r = await fetch(API+"/count");
+  const d = await r.json();
+
+  // 🔥 Only update if server value is different
+  if(d.count !== localCount){
+    localCount = d.count;
+    pending = 0;
+    save(); render();
+  }
 }
 
-/* 🔔 Network Status Auto */
+/* 🔔 Network status */
 function updateNetStatus(){
   if(navigator.onLine){
     statusEl.className="status online";
     statusEl.innerHTML="🟢 Online";
-
-    // 🔥 Internet आते ही:
-    sync();        // pending local → server
-    fetchLatest(); // server → latest data (mobile → desktop)
+    sync();
+    fetchLatest();
   }else{
     statusEl.className="status offline";
     statusEl.innerHTML="🔴 Offline";
   }
 }
 
-/* 🔄 Manual Refresh */
+/* 🔄 Manual refresh */
 function manualRefresh(){
   fetchLatest();
-  celebrate();
 }
+
+/* 🔁 AUTO SYNC EVERY 1 SECOND */
+setInterval(()=>{
+  if(navigator.onLine){
+    sync();        // local → server
+    fetchLatest(); // server → local (mobile → desktop)
+  }
+},1000);
 
 /* 🌍 Events */
 window.addEventListener("online", updateNetStatus);
@@ -211,7 +192,7 @@ updateNetStatus();
 render();
 
 /* ✅ Service Worker */
-if("serviceWorker"in navigator){
+if("serviceWorker" in navigator){
   navigator.serviceWorker.register("service-worker.js");
 }
 </script>
