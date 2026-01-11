@@ -1,216 +1,111 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>PWA Inventory System</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#2c3e50">
+<head> 
+  <title>Apple Counter</title>
   <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2c3e50">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      padding: 20px;
-    }
-
-    .status {
-      display: flex;
-      align-items: center;
-      font-weight: bold;
-      margin-bottom: 15px;
-    }
-
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-
-    .online { background: green; }
-    .offline { background: red; }
-
-    .product {
-      background: #fff;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    button {
-      padding: 6px 12px;
-      margin: 5px;
-      cursor: pointer;
-    }
-
-    .admin {
-      margin-top: 30px;
-      padding: 15px;
-      background: #222;
-      color: #fff;
-      border-radius: 8px;
-    }
-
-    input {
-      padding: 6px;
-    }
-  </style>
 </head>
-
 <body>
 
-<!-- 🔴🟢 Online Offline Status -->
-<div class="status">
-  <div id="netDot" class="dot offline"></div>
-  <span id="netText">Offline</span>
-</div>
+<h2>🍎 Apple Count</h2>
+<h1 id="count">0</h1>
 
-<h2>📦 Product Inventory (PWA)</h2>
-
-<!-- PRODUCTS -->
-<div id="products"></div>
-
-<!-- ADMIN PANEL -->
-<div class="admin">
-  <h3>🔐 Admin Panel</h3>
-  <input id="newProduct" placeholder="Product Name">
-  <button onclick="addProduct()">Add Product</button>
-</div>
+<button onclick="add()">+ Apple</button>
+<button onclick="sub()">- Apple</button>
 
 <script>
 const API = "https://apple-rj1b.onrender.com";
 
-/* 🧠 LOCAL DATA STRUCTURE
-products = {
-  apple: { count: 5, pending: 0 }
-}
-*/
-let products = JSON.parse(localStorage.getItem("products")) || {
-  apple: { count: 0, pending: 0 }
-};
+let localCount = Number(localStorage.getItem("count")) || 0;
+let pending = Number(localStorage.getItem("pending")) || 0;
 
-const productBox = document.getElementById("products");
+const el = document.getElementById("count");
 
-/* 🔄 Render Products */
 function render() {
-  productBox.innerHTML = "";
-
-  for (let name in products) {
-    const p = products[name];
-
-    productBox.innerHTML += `
-      <div class="product">
-        <h3>🍎 ${name.toUpperCase()}</h3>
-        <h1>${p.count}</h1>
-        <button onclick="change('${name}', 1)">+ Add</button>
-        <button onclick="change('${name}', -1)">- Sub</button>
-      </div>
-    `;
-  }
-
-  localStorage.setItem("products", JSON.stringify(products));
+  el.innerText = localCount;
 }
 
-/* ➕➖ Change Count */
-function change(name, delta) {
-  if (!products[name]) return;
+function saveLocal() {
+  localStorage.setItem("count", localCount);
+  localStorage.setItem("pending", pending);
+}
 
-  if (products[name].count + delta < 0) return;
-
-  products[name].count += delta;
-  products[name].pending += delta;
-
+function add() {
+  localCount++;
+  pending++;
+  saveLocal();
   render();
-
-  if (navigator.onLine) sync(name);
+  if (navigator.onLine) sync();
 }
 
-/* 🔄 Sync With Server */
-async function sync(name) {
-  const p = products[name];
-  if (p.pending === 0) return;
-
-  try {
-    const res = await fetch(API + "/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product: name,
-        delta: p.pending
-      })
-    });
-
-    const data = await res.json();
-
-    p.count = data.count;
-    p.pending = 0;
-
-    render();
-  } catch (e) {
-    console.log("Sync failed (offline)");
-  }
+function sub() {
+  if (localCount === 0) return;
+  localCount--;
+  pending--;
+  saveLocal();
+  render();
+  if (navigator.onLine) sync();
 }
 
-/* 🌐 Load From Server */
-async function loadServerData() {
+async function sync() {
+  if (pending === 0) return;
+
+  const res = await fetch(API + "/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta: pending })
+  });
+
+  const data = await res.json();
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
+  render();
+}
+
+async function loadFromServer() {
   if (!navigator.onLine) return;
 
-  const res = await fetch(API + "/all");
+  const res = await fetch(API + "/count");
   const data = await res.json();
-
-  for (let name in data) {
-    if (!products[name]) {
-      products[name] = { count: 0, pending: 0 };
-    }
-    products[name].count = data[name];
-  }
-
+  localCount = data.count;
+  pending = 0;
+  saveLocal();
   render();
 }
 
-/* 🟢🔴 Network Status UI */
-function updateNetStatus() {
-  const dot = document.getElementById("netDot");
-  const text = document.getElementById("netText");
-
-  if (navigator.onLine) {
-    dot.className = "dot online";
-    text.innerText = "Online";
-    loadServerData();
-
-    for (let name in products) {
-      if (products[name].pending !== 0) {
-        sync(name);
-      }
-    }
+/* 🔥 CRITICAL FIX */
+if (navigator.onLine) {
+  if (pending !== 0) {
+    sync();
   } else {
-    dot.className = "dot offline";
-    text.innerText = "Offline";
+    loadFromServer();
+  }
+}
+
+window.addEventListener("online", sync);
+render();
+
+  /* ✅ Service Worker Register */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("✅ Service Worker Registered"))
+    .catch(err => console.log("❌ SW Error", err));
+}
+
+/* ✅ Online / Offline Status */
+function updateNetStatus() {
+  if (navigator.onLine) {
+    console.log("Online");
+  } else {
+    console.log("Offline");
   }
 }
 
 window.addEventListener("online", updateNetStatus);
 window.addEventListener("offline", updateNetStatus);
-
-/* ➕ Admin Add Product */
-function addProduct() {
-  const name = document.getElementById("newProduct").value.toLowerCase();
-  if (!name || products[name]) return;
-
-  products[name] = { count: 0, pending: 0 };
-  render();
-}
-
-/* 🚀 INIT */
-updateNetStatus();
-render();
-
-/* 🧩 Service Worker */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
 </script>
 
 </body>
