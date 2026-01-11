@@ -1,205 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>NITESH KUMAR SINGH</title>
+<meta charset="UTF-8">
+<title>NITESH KUMAR SINGH</title>
 
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#ff4d4d">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff4d4d">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: "Segoe UI", sans-serif;
-    }
+<style>
+*{box-sizing:border-box;font-family:Segoe UI,sans-serif}
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #ffecd2, #fcb69f);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+body{
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(135deg,#ffecd2,#fcb69f);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
-    .card {
-      background: #fff;
-      padding: 25px;
-      border-radius: 16px;
-      width: 90%;
-      max-width: 350px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,.15);
-    }
+/* 🔔 Online Offline Bar */
+.status{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:14px;
+  color:#fff;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.online{background:#2ecc71}
+.offline{background:#e74c3c}
 
-    h2 {
-      margin: 0;
-      font-size: 22px;
-    }
+.card{
+  background:#fff;
+  padding:25px;
+  border-radius:18px;
+  width:90%;
+  max-width:350px;
+  text-align:center;
+  box-shadow:0 12px 30px rgba(0,0,0,.15);
+}
 
-    h1 {
-      font-size: 64px;
-      margin: 15px 0;
-      color: #ff4d4d;
-      transition: transform 0.2s ease;
-    }
+h2{margin:0;font-size:22px}
+h1{
+  font-size:64px;
+  margin:15px 0;
+  color:#ff4d4d;
+  transition:.2s;
+}
 
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      margin-top: 20px;
-    }
+.btns{
+  display:flex;
+  gap:12px;
+  margin-top:20px;
+}
+button{
+  flex:1;
+  padding:14px;
+  font-size:20px;
+  border:none;
+  border-radius:14px;
+  color:#fff;
+  cursor:pointer;
+}
+.add{background:linear-gradient(135deg,#4caf50,#2ecc71)}
+.sub{background:linear-gradient(135deg,#ff5252,#ff1744)}
+button:active{transform:scale(.95)}
 
-    button {
-      flex: 1;
-      padding: 14px;
-      font-size: 20px;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      color: #fff;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    button:active {
-      transform: scale(0.95);
-    }
-
-    .add {
-      background: linear-gradient(135deg, #4caf50, #2ecc71);
-      box-shadow: 0 6px 15px rgba(76,175,80,.4);
-    }
-
-    .sub {
-      background: linear-gradient(135deg, #ff5252, #ff1744);
-      box-shadow: 0 6px 15px rgba(255,82,82,.4);
-    }
-
-    /* 🎉 Confetti */
-    .confetti {
-      position: fixed;
-      top: -10px;
-      width: 10px;
-      height: 10px;
-      animation: fall 1s linear forwards;
-      z-index: 9999;
-    }
-
-    @keyframes fall {
-      to {
-        transform: translateY(110vh) rotate(360deg);
-        opacity: 0;
-      }
-    }
-  </style>
+/* 🎉 Celebration */
+.celebrate{
+  position:fixed;
+  top:-20px;
+  font-size:26px;
+  animation:fall linear forwards;
+  z-index:9998;
+}
+@keyframes fall{
+  to{transform:translateY(110vh) rotate(360deg);opacity:0}
+}
+</style>
 </head>
 
 <body>
 
-  <div class="card">
-    <h2>🍎 Apple Count</h2>
-    <h1 id="count">0</h1>
+<div id="netStatus" class="status online">🟢 Online</div>
 
-    <div class="btn-group">
-      <button class="add" onclick="add()">+ Apple</button>
-      <button class="sub" onclick="sub()">- Apple</button>
-    </div>
+<div class="card">
+  <h2>🍎 Apple Count</h2>
+  <h1 id="count">0</h1>
+  <div class="btns">
+    <button class="add" onclick="add()">+ Apple</button>
+    <button class="sub" onclick="sub()">- Apple</button>
   </div>
+</div>
 
 <script>
-const API = "https://apple-rj1b.onrender.com";
+const API="https://apple-rj1b.onrender.com";
+let localCount=Number(localStorage.getItem("count"))||0;
+let pending=Number(localStorage.getItem("pending"))||0;
+const el=document.getElementById("count");
 
-let localCount = Number(localStorage.getItem("count")) || 0;
-let pending = Number(localStorage.getItem("pending")) || 0;
-
-const el = document.getElementById("count");
-
-function render() {
-  el.innerText = localCount;
-  el.style.transform = "scale(1.15)";
-  setTimeout(() => el.style.transform = "scale(1)", 150);
+/* 🔄 Render */
+function render(){
+  el.innerText=localCount;
+  el.style.transform="scale(1.2)";
+  setTimeout(()=>el.style.transform="scale(1)",150);
+}
+function save(){
+  localStorage.setItem("count",localCount);
+  localStorage.setItem("pending",pending);
 }
 
-function saveLocal() {
-  localStorage.setItem("count", localCount);
-  localStorage.setItem("pending", pending);
-}
-
-/* 🎉 Celebration Effect */
-function celebrate() {
-  for (let i = 0; i < 20; i++) {
-    const confetti = document.createElement("div");
-    confetti.className = "confetti";
-    confetti.style.left = Math.random() * 100 + "vw";
-    confetti.style.background =
-      `hsl(${Math.random() * 360}, 100%, 50%)`;
-    confetti.style.animationDuration =
-      0.8 + Math.random() * 0.6 + "s";
-    document.body.appendChild(confetti);
-    setTimeout(() => confetti.remove(), 1500);
+/* 🎊 FULL Celebration */
+function celebrate(){
+  const icons=["🎉","🎊","🚀","🍎","👏","✨","💥"];
+  for(let i=0;i<35;i++){
+    const e=document.createElement("div");
+    e.className="celebrate";
+    e.innerText=icons[Math.floor(Math.random()*icons.length)];
+    e.style.left=Math.random()*100+"vw";
+    e.style.animationDuration=(1+Math.random()*1.5)+"s";
+    document.body.appendChild(e);
+    setTimeout(()=>e.remove(),2000);
   }
 }
 
-function add() {
-  localCount++;
-  pending++;
-  saveLocal();
-  render();
-  celebrate();
-  if (navigator.onLine) sync();
+/* ➕ ➖ */
+function add(){
+  localCount++; pending++;
+  save(); render(); celebrate();
+  if(navigator.onLine) sync();
+}
+function sub(){
+  if(localCount===0) return;
+  localCount--; pending--;
+  save(); render(); celebrate();
+  if(navigator.onLine) sync();
 }
 
-function sub() {
-  if (localCount === 0) return;
-  localCount--;
-  pending--;
-  saveLocal();
-  render();
-  celebrate();
-  if (navigator.onLine) sync();
-}
-
-async function sync() {
-  if (pending === 0) return;
-
-  const res = await fetch(API + "/update", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ delta: pending })
+/* 🌐 Server Sync */
+async function sync(){
+  if(pending===0) return;
+  const r=await fetch(API+"/update",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({delta:pending})
   });
-
-  const data = await res.json();
-  localCount = data.count;
-  pending = 0;
-  saveLocal();
-  render();
+  const d=await r.json();
+  localCount=d.count;
+  pending=0;
+  save(); render();
+}
+async function load(){
+  if(!navigator.onLine) return;
+  const r=await fetch(API+"/count");
+  const d=await r.json();
+  localCount=d.count;
+  pending=0;
+  save(); render();
 }
 
-async function loadFromServer() {
-  if (!navigator.onLine) return;
-
-  const res = await fetch(API + "/count");
-  const data = await res.json();
-  localCount = data.count;
-  pending = 0;
-  saveLocal();
-  render();
+/* 🔔 Online Offline Indicator */
+const statusEl=document.getElementById("netStatus");
+function updateStatus(){
+  if(navigator.onLine){
+    statusEl.className="status online";
+    statusEl.innerHTML="🟢 Online";
+    sync();
+  }else{
+    statusEl.className="status offline";
+    statusEl.innerHTML="🔴 Offline";
+  }
 }
+window.addEventListener("online",updateStatus);
+window.addEventListener("offline",updateStatus);
 
-/* 🔥 Critical Fix */
-if (navigator.onLine) {
-  pending !== 0 ? sync() : loadFromServer();
-}
-
-window.addEventListener("online", sync);
+/* Init */
+navigator.onLine ? load() : updateStatus();
 render();
 
 /* ✅ Service Worker */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js")
-    .then(() => console.log("✅ SW Registered"))
-    .catch(err => console.log("❌ SW Error", err));
+if("serviceWorker"in navigator){
+  navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 
