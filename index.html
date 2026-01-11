@@ -20,7 +20,6 @@ body{
   justify-content:center;
 }
 
-/* 🔔 Status */
 .status{
   position:fixed;
   top:10px;
@@ -30,8 +29,6 @@ body{
   border-radius:20px;
   font-size:14px;
   color:#fff;
-  display:flex;
-  gap:6px;
   z-index:9999;
 }
 .online{background:#2ecc71}
@@ -47,7 +44,6 @@ body{
   box-shadow:0 12px 30px rgba(0,0,0,.15);
 }
 
-h2{margin:0}
 h1{
   font-size:64px;
   margin:15px 0;
@@ -57,7 +53,6 @@ h1{
 .btns{
   display:flex;
   gap:10px;
-  margin-top:15px;
 }
 button{
   flex:1;
@@ -71,8 +66,6 @@ button{
 .add{background:#2ecc71}
 .sub{background:#ff5252}
 .refresh{background:#3498db}
-
-button:active{transform:scale(.95)}
 </style>
 </head>
 
@@ -88,14 +81,12 @@ button:active{transform:scale(.95)}
     <button class="add" onclick="add()">+ Apple</button>
     <button class="sub" onclick="sub()">- Apple</button>
   </div>
-
-  <div class="btns">
-    <button class="refresh" onclick="manualRefresh()">🔄 Refresh</button>
-  </div>
+  <br>
+  <button class="refresh" onclick="fetchLatest()">🔄 Refresh</button>
 </div>
 
 <script>
-const API = "https://apple-rj1b.onrender.com";
+const API="https://apple-rj1b.onrender.com";
 
 let localCount = Number(localStorage.getItem("count")) || 0;
 let pending    = Number(localStorage.getItem("pending")) || 0;
@@ -103,66 +94,68 @@ let pending    = Number(localStorage.getItem("pending")) || 0;
 const countEl  = document.getElementById("count");
 const statusEl = document.getElementById("netStatus");
 
-/* 🔄 Render */
 function render(){
   countEl.innerText = localCount;
 }
 
-/* 💾 Save */
 function save(){
   localStorage.setItem("count", localCount);
   localStorage.setItem("pending", pending);
 }
 
-/* ➕ ➖ */
+/* ➕ ➖ Button */
 function add(){
-  localCount++; pending++;
-  save(); render();
-  if(navigator.onLine) sync();
+  localCount++;
+  pending++;
+  save();
+  render();
+  if(navigator.onLine) syncPending();
 }
+
 function sub(){
   if(localCount===0) return;
-  localCount--; pending--;
-  save(); render();
-  if(navigator.onLine) sync();
+  localCount--;
+  pending--;
+  save();
+  render();
+  if(navigator.onLine) syncPending();
 }
 
-/* 🌐 Sync pending → server */
-async function sync(){
-  if(!navigator.onLine || pending===0) return;
+/* 🔼 Offline → Online sync */
+async function syncPending(){
+  if(pending === 0) return;
 
-  const r = await fetch(API+"/update",{
+  await fetch(API+"/update",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({delta:pending})
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ delta: pending })
   });
-  const d = await r.json();
-  localCount = d.count;
+
   pending = 0;
-  save(); render();
+  save();
 }
 
-/* 📥 Fetch latest from server */
+/* 🔽 SERVER → CLIENT (REAL TIME) */
 async function fetchLatest(){
   if(!navigator.onLine) return;
 
   const r = await fetch(API+"/count");
   const d = await r.json();
 
-  // 🔥 Only update if server value is different
   if(d.count !== localCount){
     localCount = d.count;
     pending = 0;
-    save(); render();
+    save();
+    render();
   }
 }
 
-/* 🔔 Network status */
+/* 🌐 Network status */
 function updateNetStatus(){
   if(navigator.onLine){
     statusEl.className="status online";
     statusEl.innerHTML="🟢 Online";
-    sync();
+    syncPending();
     fetchLatest();
   }else{
     statusEl.className="status offline";
@@ -170,28 +163,19 @@ function updateNetStatus(){
   }
 }
 
-/* 🔄 Manual refresh */
-function manualRefresh(){
-  fetchLatest();
-}
-
-/* 🔁 AUTO SYNC EVERY 1 SECOND */
+/* 🔁 🔥 AUTO REAL-TIME SYNC (EVERY 1 SECOND) */
 setInterval(()=>{
-  if(navigator.onLine){
-    sync();        // local → server
-    fetchLatest(); // server → local (mobile → desktop)
-  }
+  fetchLatest();
 },1000);
 
-/* 🌍 Events */
 window.addEventListener("online", updateNetStatus);
 window.addEventListener("offline", updateNetStatus);
 
-/* 🚀 Init */
+/* Init */
 updateNetStatus();
 render();
 
-/* ✅ Service Worker */
+/* Service Worker */
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("service-worker.js");
 }
