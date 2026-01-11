@@ -81,19 +81,23 @@ button{
     <button class="add" onclick="add()">+ Apple</button>
     <button class="sub" onclick="sub()">- Apple</button>
   </div>
+
   <br>
   <button class="refresh" onclick="fetchLatest()">🔄 Refresh</button>
 </div>
 
 <script>
-const API="https://apple-rj1b.onrender.com";
+/* ================= CONFIG ================= */
+const API = "https://apple-rj1b.onrender.com";
 
+/* ================= STATE ================= */
 let localCount = Number(localStorage.getItem("count")) || 0;
 let pending    = Number(localStorage.getItem("pending")) || 0;
 
 const countEl  = document.getElementById("count");
 const statusEl = document.getElementById("netStatus");
 
+/* ================= UI ================= */
 function render(){
   countEl.innerText = localCount;
 }
@@ -103,7 +107,7 @@ function save(){
   localStorage.setItem("pending", pending);
 }
 
-/* ➕ ➖ Button */
+/* ================= BUTTON ACTION ================= */
 function add(){
   localCount++;
   pending++;
@@ -113,7 +117,7 @@ function add(){
 }
 
 function sub(){
-  if(localCount===0) return;
+  if(localCount === 0) return;
   localCount--;
   pending--;
   save();
@@ -121,25 +125,31 @@ function sub(){
   if(navigator.onLine) syncPending();
 }
 
-/* 🔼 Offline → Online sync */
+/* ================= OFFLINE → ONLINE SYNC ================= */
 async function syncPending(){
-  if(pending === 0) return;
+  if(!navigator.onLine || pending === 0) return;
 
-  await fetch(API+"/update",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ delta: pending })
+  const r = await fetch(API + "/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta: pending })
   });
 
+  const d = await r.json();
+
+  /* 🔥 SERVER IS SINGLE SOURCE OF TRUTH */
+  localCount = d.count;
   pending = 0;
+
   save();
+  render();
 }
 
-/* 🔽 SERVER → CLIENT (REAL TIME) */
+/* ================= SERVER → CLIENT ================= */
 async function fetchLatest(){
   if(!navigator.onLine) return;
 
-  const r = await fetch(API+"/count");
+  const r = await fetch(API + "/count");
   const d = await r.json();
 
   if(d.count !== localCount){
@@ -150,32 +160,33 @@ async function fetchLatest(){
   }
 }
 
-/* 🌐 Network status */
+/* ================= NETWORK STATUS ================= */
 function updateNetStatus(){
   if(navigator.onLine){
-    statusEl.className="status online";
-    statusEl.innerHTML="🟢 Online";
+    statusEl.className = "status online";
+    statusEl.innerHTML = "🟢 Online";
     syncPending();
     fetchLatest();
   }else{
-    statusEl.className="status offline";
-    statusEl.innerHTML="🔴 Offline";
+    statusEl.className = "status offline";
+    statusEl.innerHTML = "🔴 Offline";
   }
 }
-
-/* 🔁 🔥 AUTO REAL-TIME SYNC (EVERY 1 SECOND) */
-setInterval(()=>{
-  fetchLatest();
-},1000);
 
 window.addEventListener("online", updateNetStatus);
 window.addEventListener("offline", updateNetStatus);
 
-/* Init */
+/* ================= AUTO REAL-TIME POLLING ================= */
+/* 🔁 EVERY 1 SECOND – Desktop ↔ Mobile sync */
+setInterval(() => {
+  fetchLatest();
+}, 1000);
+
+/* ================= INIT ================= */
 updateNetStatus();
 render();
 
-/* Service Worker */
+/* ================= SERVICE WORKER ================= */
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("service-worker.js");
 }
