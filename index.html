@@ -1,19 +1,111 @@
 <!DOCTYPE html>
-<html>
-<head> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
   <title>NITESH KUMAR SINGH</title>
-  <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2c3e50">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff4d4d">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #ffecd2, #fcb69f);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #fff;
+      padding: 25px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 350px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    h1 {
+      font-size: 64px;
+      margin: 15px 0;
+      color: #ff4d4d;
+      transition: transform 0.2s ease;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      font-size: 20px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      color: #fff;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .add {
+      background: linear-gradient(135deg, #4caf50, #2ecc71);
+      box-shadow: 0 6px 15px rgba(76,175,80,.4);
+    }
+
+    .sub {
+      background: linear-gradient(135deg, #ff5252, #ff1744);
+      box-shadow: 0 6px 15px rgba(255,82,82,.4);
+    }
+
+    /* 🎉 Confetti */
+    .confetti {
+      position: fixed;
+      top: -10px;
+      width: 10px;
+      height: 10px;
+      animation: fall 1s linear forwards;
+      z-index: 9999;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>🍎 Apple Count</h2>
-<h1 id="count">0</h1>
+  <div class="card">
+    <h2>🍎 Apple Count</h2>
+    <h1 id="count">0</h1>
 
-<button onclick="add()">+ Apple</button>
-<button onclick="sub()">- Apple</button>
+    <div class="btn-group">
+      <button class="add" onclick="add()">+ Apple</button>
+      <button class="sub" onclick="sub()">- Apple</button>
+    </div>
+  </div>
 
 <script>
 const API = "https://apple-rj1b.onrender.com";
@@ -25,6 +117,8 @@ const el = document.getElementById("count");
 
 function render() {
   el.innerText = localCount;
+  el.style.transform = "scale(1.15)";
+  setTimeout(() => el.style.transform = "scale(1)", 150);
 }
 
 function saveLocal() {
@@ -32,11 +126,27 @@ function saveLocal() {
   localStorage.setItem("pending", pending);
 }
 
+/* 🎉 Celebration Effect */
+function celebrate() {
+  for (let i = 0; i < 20; i++) {
+    const confetti = document.createElement("div");
+    confetti.className = "confetti";
+    confetti.style.left = Math.random() * 100 + "vw";
+    confetti.style.background =
+      `hsl(${Math.random() * 360}, 100%, 50%)`;
+    confetti.style.animationDuration =
+      0.8 + Math.random() * 0.6 + "s";
+    document.body.appendChild(confetti);
+    setTimeout(() => confetti.remove(), 1500);
+  }
+}
+
 function add() {
   localCount++;
   pending++;
   saveLocal();
   render();
+  celebrate();
   if (navigator.onLine) sync();
 }
 
@@ -46,6 +156,7 @@ function sub() {
   pending--;
   saveLocal();
   render();
+  celebrate();
   if (navigator.onLine) sync();
 }
 
@@ -76,36 +187,20 @@ async function loadFromServer() {
   render();
 }
 
-/* 🔥 CRITICAL FIX */
+/* 🔥 Critical Fix */
 if (navigator.onLine) {
-  if (pending !== 0) {
-    sync();
-  } else {
-    loadFromServer();
-  }
+  pending !== 0 ? sync() : loadFromServer();
 }
 
 window.addEventListener("online", sync);
 render();
 
-  /* ✅ Service Worker Register */
+/* ✅ Service Worker */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js")
-    .then(() => console.log("✅ Service Worker Registered"))
+    .then(() => console.log("✅ SW Registered"))
     .catch(err => console.log("❌ SW Error", err));
 }
-
-/* ✅ Online / Offline Status */
-function updateNetStatus() {
-  if (navigator.onLine) {
-    console.log("Online");
-  } else {
-    console.log("Offline");
-  }
-}
-
-window.addEventListener("online", updateNetStatus);
-window.addEventListener("offline", updateNetStatus);
 </script>
 
 </body>
