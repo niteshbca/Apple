@@ -122,7 +122,8 @@ async function sync(name){
   const r=await fetch(API+"/update",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)});
   const d=await r.json();
   i.count=d.count;i.pending=0;
-  saveLocal(i);render();
+  saveLocal(i);
+  render();
 }
 
 /* ================= ONLINE/OFFLINE ================= */
