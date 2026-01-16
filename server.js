@@ -1,33 +1,37 @@
-const express=require("express");
-const mongoose=require("mongoose");
-const cors=require("cors");
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-const app=express();
+const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb+srv://niteshkumarsingh1500_db_user:bmGJLSXNqghFKT9W@cluster0.i5fv4ad.mongodb.net/inventory");
+const MONGO_URL =
+"mongodb+srv://niteshkumarsingh1500_db_user:bmGJLSXNqghFKT9W@cluster0.i5fv4ad.mongodb.net/appledb?retryWrites=true&w=majority";
 
-const Item=mongoose.model("Item",new mongoose.Schema({
-  name:String,count:Number
-}));
+mongoose.connect(MONGO_URL)
+  .then(() => console.log("✅ MongoDB Atlas Connected"))
+  .catch(err => console.error("❌ MongoDB Error:", err.message));
 
-app.post("/create",async(req,res)=>{
-  await Item.updateOne({name:req.body.name},{name:req.body.name,count:0},{upsert:true});
-  res.send({ok:1});
+const AppleSchema = new mongoose.Schema({
+  count: { type: Number, default: 0 }
 });
 
-app.post("/update",async(req,res)=>{
-  const {name,pending}=req.body;
-  const i=await Item.findOne({name})||{count:0};
-  const c=Math.max(0,i.count+pending);
-  await Item.updateOne({name},{count:c},{upsert:true});
-  res.send({count:c});
+const Apple = mongoose.model("Apple", AppleSchema);
+
+app.get("/count", async (req, res) => {
+  let data = await Apple.findOne();
+  if (!data) data = await Apple.create({ count: 0 });
+  res.json({ count: data.count });
 });
 
-app.delete("/delete/:name",async(req,res)=>{
-  await Item.deleteOne({name:req.params.name});
-  res.send({ok:1});
+app.post("/update", async (req, res) => {
+  const { delta } = req.body;
+  let data = await Apple.findOne();
+  if (!data) data = await Apple.create({ count: 0 });
+  data.count = Math.max(0, data.count + delta);
+  await data.save();
+  res.json({ count: data.count });
 });
 
-app.listen(3000,()=>console.log("🚀 Server 3000"));
+app.listen(3000, () => console.log("🚀 Server running on 3000"));
