@@ -1,144 +1,196 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>PWA Inventory</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NITESH KUMAR SINGH</title>
+
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff4d4d">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{margin:0;background:#f6f6f6;font-family:Arial}
-header{padding:10px;text-align:center;background:#ff4d4d;color:#fff}
-.status{font-size:14px}
-.container{padding:15px}
-.item{background:#fff;margin:10px 0;padding:15px;border-radius:10px}
-button{padding:6px 12px;margin:3px}
-.admin{background:#222;color:#fff;padding:10px;border-radius:10px}
+*{box-sizing:border-box;font-family:Segoe UI,sans-serif}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(135deg,#ffecd2,#fcb69f);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.status{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:14px;
+  color:#fff;
+  z-index:9999;
+}
+.online{background:#2ecc71}
+.offline{background:#e74c3c}
+
+.card{
+  background:#fff;
+  padding:25px;
+  border-radius:18px;
+  width:90%;
+  max-width:360px;
+  text-align:center;
+  box-shadow:0 12px 30px rgba(0,0,0,.15);
+}
+
+h1{
+  font-size:64px;
+  margin:15px 0;
+  color:#ff4d4d;
+}
+
+.btns{
+  display:flex;
+  gap:10px;
+}
+button{
+  flex:1;
+  padding:14px;
+  font-size:16px;
+  border:none;
+  border-radius:14px;
+  color:#fff;
+  cursor:pointer;
+}
+.add{background:#2ecc71}
+.sub{background:#ff5252}
+.refresh{background:#3498db}
 </style>
 </head>
 
 <body>
-<header>
-  <h2>📦 Inventory PWA</h2>
-  <div id="net" class="status">Offline</div>
-</header>
 
-<div class="container">
+<div id="netStatus" class="status offline">🔴 Offline</div>
 
-<div class="admin">
-  <input id="name" placeholder="Item name">
-  <button onclick="create()">➕ Add</button>
-</div>
+<div class="card">
+  <h2>🍎 Apple Count</h2>
+  <h1 id="count">0</h1>
 
-<div id="list"></div>
+  <div class="btns">
+    <button class="add" onclick="add()">+ Apple</button>
+    <button class="sub" onclick="sub()">- Apple</button>
+  </div>
 
+  <br>
+  <button class="refresh" onclick="fetchLatest()">🔄 Refresh</button>
 </div>
 
 <script>
 /* ================= CONFIG ================= */
-const API = "http://localhost:3000";
-
-/* ================= INDEXED DB ================= */
-let db;
-const openDB = indexedDB.open("inventoryDB", 1);
-openDB.onupgradeneeded = e => {
-  db = e.target.result;
-  db.createObjectStore("items", { keyPath: "name" });
-};
-openDB.onsuccess = e => {
-  db = e.target.result;
-  loadLocal();
-};
+const API = "https://apple-rj1b.onrender.com";
 
 /* ================= STATE ================= */
-let items = {};
-const list = document.getElementById("list");
+let localCount = Number(localStorage.getItem("count")) || 0;
+let pending    = Number(localStorage.getItem("pending")) || 0;
+
+const countEl  = document.getElementById("count");
+const statusEl = document.getElementById("netStatus");
 
 /* ================= UI ================= */
 function render(){
-  list.innerHTML="";
-  for(let k in items){
-    let i = items[k];
-    list.innerHTML += `
-      <div class="item">
-        <b>${k}</b>
-        <h2>${i.count}</h2>
-        <button onclick="update('${k}',1)">+</button>
-        <button onclick="update('${k}',-1)">-</button>
-        <button onclick="remove('${k}')">🗑</button>
-      </div>`;
-  }
+  countEl.innerText = localCount;
 }
 
-/* ================= LOCAL DB ================= */
-function saveLocal(item){
-  const tx=db.transaction("items","readwrite");
-  tx.objectStore("items").put(item);
+function save(){
+  localStorage.setItem("count", localCount);
+  localStorage.setItem("pending", pending);
 }
-function deleteLocal(name){
-  const tx=db.transaction("items","readwrite");
-  tx.objectStore("items").delete(name);
+
+/* ================= BUTTON ACTION ================= */
+function add(){
+  localCount++;
+  pending++;
+  save();
+  render();
+  if(navigator.onLine) syncPending();
 }
-function loadLocal(){
-  const tx=db.transaction("items","readonly");
-  tx.objectStore("items").getAll().onsuccess=e=>{
-    e.target.result.forEach(i=>items[i.name]=i);
+
+function sub(){
+  if(localCount === 0) return;
+  localCount--;
+  pending--;
+  save();
+  render();
+  if(navigator.onLine) syncPending();
+}
+
+/* ================= OFFLINE → ONLINE SYNC ================= */
+async function syncPending(){
+  if(!navigator.onLine || pending === 0) return;
+
+  const r = await fetch(API + "/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta: pending })
+  });
+
+  const d = await r.json();
+
+  /* 🔥 SERVER IS SINGLE SOURCE OF TRUTH */
+  localCount = d.count;
+  pending = 0;
+
+  save();
+  render();
+}
+
+/* ================= SERVER → CLIENT ================= */
+async function fetchLatest(){
+  if(!navigator.onLine) return;
+
+  const r = await fetch(API + "/count");
+  const d = await r.json();
+
+  if(d.count !== localCount){
+    localCount = d.count;
+    pending = 0;
+    save();
     render();
   }
 }
 
-/* ================= CRUD ================= */
-function create(){
-  const name=document.getElementById("name").value.toLowerCase();
-  if(!name||items[name])return;
-  items[name]={name,count:0,pending:0};
-  saveLocal(items[name]);
-  render();
-  if(navigator.onLine) fetch(API+"/create",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});
+/* ================= NETWORK STATUS ================= */
+function updateNetStatus(){
+  if(navigator.onLine){
+    statusEl.className = "status online";
+    statusEl.innerHTML = "🟢 Online";
+    syncPending();
+    fetchLatest();
+  }else{
+    statusEl.className = "status offline";
+    statusEl.innerHTML = "🔴 Offline";
+  }
 }
 
-function update(name,delta){
-  const i=items[name];
-  if(i.count+delta<0)return;
-  i.count+=delta;
-  i.pending+=delta;
-  saveLocal(i);
-  render();
-  if(navigator.onLine) sync(name);
-}
+window.addEventListener("online", updateNetStatus);
+window.addEventListener("offline", updateNetStatus);
 
-function remove(name){
-  delete items[name];
-  deleteLocal(name);
-  render();
-  if(navigator.onLine) fetch(API+"/delete/"+name,{method:"DELETE"});
-}
+/* ================= AUTO REAL-TIME POLLING ================= */
+/* 🔁 EVERY 1 SECOND – Desktop ↔ Mobile sync */
+setInterval(() => {
+  fetchLatest();
+}, 1000);
 
-/* ================= SYNC ================= */
-async function sync(name){
-  const i=items[name];
-  if(!i.pending)return;
-  const r=await fetch(API+"/update",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)});
-  const d=await r.json();
-  i.count=d.count;i.pending=0;
-  saveLocal(i);
-  render();
-}
-
-/* ================= ONLINE/OFFLINE ================= */
-function net(){
-  document.getElementById("net").innerText=navigator.onLine?"🟢 Online":"🔴 Offline";
-  if(navigator.onLine) Object.keys(items).forEach(sync);
-}
-window.addEventListener("online",net);
-window.addEventListener("offline",net);
-net();
+/* ================= INIT ================= */
+updateNetStatus();
+render();
 
 /* ================= SERVICE WORKER ================= */
-if("serviceWorker"in navigator){
+if("serviceWorker" in navigator){
   navigator.serviceWorker.register("service-worker.js");
 }
 </script>
+
 </body>
 </html>
